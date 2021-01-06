@@ -201,7 +201,11 @@ int main(int argc, char **argv) {
     filePathFilter->include(regex);
   }
 
+  bool enableJunkDetection = !tool::DisableJunkDetection.getValue();
   if (tool::EnableAST && compilationDatabaseInfoAvailable) {
+    if (!tool::EnableJunkDetection) {
+      enableJunkDetection = false;
+    }
     std::vector<mull::MutatorKind> mutationKinds;
     for (auto &mutator : mutatorsOptions.mutators()) {
       mutationKinds.push_back(mutator->mutatorKind());
@@ -216,7 +220,7 @@ int main(int argc, char **argv) {
     filters.mutationFilters.push_back(astMutationFilter);
   }
 
-  if (!tool::DisableJunkDetection.getValue()) {
+  if (enableJunkDetection) {
     auto *junkFilter = new mull::JunkMutationFilter(junkDetector);
     filters.mutationFilters.push_back(junkFilter);
     filterStorage.emplace_back(junkFilter);

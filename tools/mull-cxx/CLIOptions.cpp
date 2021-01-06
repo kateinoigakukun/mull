@@ -52,6 +52,13 @@ opt<std::string> tool::ReportName(
   init(""),
   cat(MullCXXCategory));
 
+opt<bool> tool::EnableJunkDetection(
+    "enable-junk-detection",
+    desc("Enable removal of junk mutations"),
+    Optional,
+    init(false),
+    cat(MullCXXCategory));
+
 opt<bool> tool::DisableJunkDetection(
     "disable-junk-detection",
     desc("Do not remove junk mutations"),
@@ -306,6 +313,7 @@ void tool::dumpCLIInterface(Diagnostics &diagnostics) {
       &NoMutantOutput,
       &NoOutput,
 
+      &EnableJunkDetection,
       &DisableJunkDetection,
       &CompilationDatabasePath,
       &CompilationFlags,
