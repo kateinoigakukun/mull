@@ -48,6 +48,7 @@ extern opt<bool> NoTestOutput;
 extern opt<bool> NoMutantOutput;
 
 extern opt<bool> EnableAST;
+extern opt<std::string> GitDiff;
 
 extern list<std::string> ExcludePaths;
 extern list<std::string> IncludePaths;

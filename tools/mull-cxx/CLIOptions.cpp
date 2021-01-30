@@ -139,6 +139,13 @@ opt<bool> tool::EnableAST(
   llvm::cl::desc("Enable \"white\" AST search (disabled by default)"),
   llvm::cl::cat(MullCXXCategory), llvm::cl::init(false));
 
+opt<std::string> tool::GitDiff(
+    "git-diff",
+    desc("Git branch to run diff against (enables incremental testing)"),
+    Optional,
+    value_desc("git branch name"),
+    cat(MullCXXCategory));
+
 opt<bool> tool::IncludeNotCovered(
     "include-not-covered",
     desc("Include (but do not run) not covered mutants. Disabled by default"),
@@ -339,6 +346,7 @@ void tool::dumpCLIInterface(Diagnostics &diagnostics) {
 
       &(Option &)IncludePaths,
       &(Option &)ExcludePaths,
+      &(Option &)GitDiff,
 
       mutators,
   });

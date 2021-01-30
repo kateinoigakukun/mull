@@ -15,6 +15,7 @@
 #include "mull/Filters/FilePathFilter.h"
 #include "mull/Filters/Filter.h"
 #include "mull/Filters/Filters.h"
+#include "mull/Filters/GitDiffFilter.h"
 #include "mull/Filters/JunkMutationFilter.h"
 #include "mull/Filters/NoDebugInfoFilter.h"
 #include "mull/JunkDetection/CXX/CXXJunkDetector.h"
@@ -40,8 +41,8 @@ static void validateInputFile() {
 }
 
 static std::vector<std::string> splitFlags(const std::string &flags) {
-  std::istringstream s{flags};
-  return std::vector<std::string>(std::istream_iterator<std::string>{s}, {});
+  std::istringstream s{ flags };
+  return std::vector<std::string>(std::istream_iterator<std::string>{ s }, {});
 }
 
 int main(int argc, char **argv) {
@@ -176,12 +177,11 @@ int main(int argc, char **argv) {
       diagnostics, cxxCompilationDatabasePath, cxxCompilationFlags, bitcodeCompilationFlags);
 
   mull::ASTSourceInfoProvider sourceInfoProvider(astStorage);
-  tool::ReporterParameters params{
-      .reporterName = tool::ReportName.getValue(),
-      .reporterDirectory = tool::ReportDirectory.getValue(),
-      .sourceInfoProvider = sourceInfoProvider,
-      .compilationDatabaseAvailable = compilationDatabaseInfoAvailable
-  };
+  tool::ReporterParameters params{ .reporterName = tool::ReportName.getValue(),
+                                   .reporterDirectory = tool::ReportDirectory.getValue(),
+                                   .sourceInfoProvider = sourceInfoProvider,
+                                   .compilationDatabaseAvailable =
+                                       compilationDatabaseInfoAvailable };
   std::vector<std::unique_ptr<mull::Reporter>> reporters = reportersOption.reporters(params);
 
   mull::CXXJunkDetector junkDetector(astStorage);
@@ -193,9 +193,10 @@ int main(int argc, char **argv) {
 
   auto *noDebugInfoFilter = new mull::NoDebugInfoFilter;
   auto *filePathFilter = new mull::FilePathFilter;
-
+  auto *gitDiffFilter = new mull::GitDiffFilter(diagnostics);
   filterStorage.emplace_back(noDebugInfoFilter);
   filterStorage.emplace_back(filePathFilter);
+  filterStorage.emplace_back(gitDiffFilter);
 
   filters.mutationFilters.push_back(noDebugInfoFilter);
   filters.functionFilters.push_back(noDebugInfoFilter);
@@ -209,6 +210,12 @@ int main(int argc, char **argv) {
   }
   for (const auto &regex : tool::IncludePaths) {
     filePathFilter->include(regex);
+  }
+
+  if (tool::GitDiff.getValue().size() > 0) {
+    std::string gitDiffBranch = tool::GitDiff.getValue();
+    gitDiffFilter->activateAgainstGitBranch(gitDiffBranch);
+    filters.functionFilters.push_back(gitDiffFilter);
   }
 
   if (tool::EnableAST && compilationDatabaseInfoAvailable) {
