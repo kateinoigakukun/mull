@@ -74,6 +74,15 @@ MutationPointAddress::addressFromInstruction(const llvm::Instruction *instructio
 
 #pragma mark - MutationPoint
 
+MutationPoint::MutationPoint(Mutator *mutator, std::string replacement,
+                             SourceLocation sourceLocation, std::string diagnostics)
+  : mutator(mutator), address(0, 0, 0), bitcode(nullptr), originalFunction(nullptr),
+    mutatedFunction(nullptr), diagnostics(diagnostics), replacement(replacement),
+    sourceLocation(sourceLocation), irMutator(nullptr), covered(true) {
+  userIdentifier = mutator->getUniqueIdentifier() + ':' + sourceLocation.filePath + ':' +
+                   std::to_string(sourceLocation.line) + ':' +
+                   std::to_string(sourceLocation.column);
+}
 MutationPoint::MutationPoint(Mutator *mutator, irm::IRMutation *irMutator,
                              llvm::Instruction *instruction, Bitcode *m)
     : mutator(mutator), address(MutationPointAddress::addressFromInstruction(instruction)),
