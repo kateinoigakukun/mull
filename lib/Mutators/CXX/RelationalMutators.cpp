@@ -101,6 +101,7 @@ std::string NotEqualToEqual::ID() {
 
 static std::vector<std::unique_ptr<irm::IRMutation>> getNotEqualToEqual() {
   std::vector<std::unique_ptr<irm::IRMutation>> mutators;
+  mutators.emplace_back(new irm::ICMP_EQToICMP_NE());
   mutators.emplace_back(new irm::ICMP_NEToICMP_EQ());
   mutators.emplace_back(new irm::FCMP_ONEToFCMP_OEQ());
   mutators.emplace_back(new irm::FCMP_UNEToFCMP_UEQ());
