@@ -12,6 +12,7 @@
 #include "mull/Mutators/Mutator.h"
 #include "mull/Mutators/NegateConditionMutator.h"
 #include "mull/Mutators/ScalarValueMutator.h"
+#include "mull/Mutators/Swift/SwiftMutations.h"
 #include <llvm/ADT/STLExtras.h>
 #include <set>
 #include <sstream>
@@ -52,6 +53,9 @@ static string CXX_Bitwise() {
 }
 static string CXX_Logical() {
   return "cxx_logical";
+}
+static string Swift_Logical() {
+  return "swift_logical";
 }
 static string CXX_Comparison() {
   return "cxx_comparison";
@@ -136,6 +140,10 @@ MutatorsFactory::MutatorsFactory(Diagnostics &diagnostics) : diagnostics(diagnos
     cxx::LogicalAndToOr::ID(), // a && b | a || b
     cxx::LogicalOrToAnd::ID(), // a || b | a && b
     cxx::RemoveNegation::ID(), // !a     | a
+  };
+
+  groupsMapping[Swift_Logical()] = {
+    swift::SwiftLogicalAndToOr::ID(), // a && b | a || b
   };
 
   groupsMapping[CXX_Comparison()] = {
@@ -235,6 +243,8 @@ void MutatorsFactory::init() {
   addMutator<cxx::LessThanToLessOrEqual>(mutatorsMapping);
   addMutator<cxx::GreaterOrEqualToGreaterThan>(mutatorsMapping);
   addMutator<cxx::GreaterThanToGreaterOrEqual>(mutatorsMapping);
+
+  addMutator<swift::SwiftLogicalAndToOr>(mutatorsMapping);
 }
 
 Mutator *MutatorsFactory::getMutator(const string &mutatorId) {

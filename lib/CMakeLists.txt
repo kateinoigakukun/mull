@@ -1,4 +1,5 @@
 add_subdirectory(Mutators/CXX)
+add_subdirectory(Mutators/Swift)
 add_subdirectory(Diagnostics)
 
 set(mull_sources
@@ -149,6 +150,7 @@ target_link_libraries(mull
   Threads::Threads
   irm
   mull-cxx-mutators
+  mull-swift-mutators
   Diagnostics
   reproc++
   )

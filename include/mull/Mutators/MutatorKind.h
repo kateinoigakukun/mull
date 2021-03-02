@@ -71,6 +71,9 @@ enum class MutatorKind {
   CXX_InitConst,
 
   CXX_RemoveNegation,
+
+  Swift_Logical_AndToOr,
+  Swift_Logical_OrToAnd,
 };
 
 std::string MutationKindToString(MutatorKind mutatorKind);
