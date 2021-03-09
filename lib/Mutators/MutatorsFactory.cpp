@@ -60,6 +60,9 @@ static string Swift_Logical() {
 static string CXX_Comparison() {
   return "cxx_comparison";
 }
+static string Swift_Comparison() {
+  return "swift_comparison";
+}
 static string CXX_Boundary() {
   return "cxx_boundary";
 }
@@ -155,6 +158,15 @@ MutatorsFactory::MutatorsFactory(Diagnostics &diagnostics) : diagnostics(diagnos
     cxx::GreaterThanToLessOrEqual::ID(), // >  | <=
   };
 
+  groupsMapping[Swift_Comparison()] = {
+    // FIXME: Swift's == and != emits multiple icmp eq insts
+    // cxx::EqualToNotEqual::ID(),          // == | !=
+    // cxx::NotEqualToEqual::ID(),          // != | ==
+    cxx::LessOrEqualToGreaterThan::ID(), // <= | >
+    cxx::LessThanToGreaterOrEqual::ID(), // <  | >=
+    cxx::GreaterOrEqualToLessThan::ID(), // >= | <
+    cxx::GreaterThanToLessOrEqual::ID(), // >  | <=
+  };
   groupsMapping[CXX_Boundary()] = {
     cxx::LessOrEqualToLessThan::ID(),       // <= | <
     cxx::LessThanToLessOrEqual::ID(),       // <  | <=
