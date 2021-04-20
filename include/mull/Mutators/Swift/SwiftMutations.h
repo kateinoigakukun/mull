@@ -23,6 +23,12 @@ public:
   mull::MutatorKind mutatorKind() override {
     return mull::MutatorKind::Swift_Logical_AndToOr;
   }
+  std::string getDiagnostics() const override {
+    return "Replaced && with ||";
+  }
+  std::string getReplacement() const override {
+    return "||";
+  }
 
   void applyMutation(llvm::Function *function, const mull::MutationPointAddress &address,
                      irm::IRMutation *lowLevelMutation) override;

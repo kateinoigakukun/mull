@@ -117,7 +117,7 @@ std::vector<MutationPoint *> SwiftLogicalAndToOr::getMutations(Bitcode *bitcode,
   for (auto &instruction : llvm::instructions(function.getFunction())) {
     if (findPossibleMutation(instruction)) {
       auto point =
-          new mull::MutationPoint(this, nullptr, &instruction, "||", bitcode, "AND-OR Replacement");
+          new mull::MutationPoint(this, nullptr, &instruction, bitcode);
       mutations.push_back(point);
     }
   }
