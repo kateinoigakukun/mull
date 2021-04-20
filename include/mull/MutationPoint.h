@@ -65,8 +65,6 @@ class MutationPoint {
   bool covered;
 
 public:
-  MutationPoint(Mutator *mutator, std::string replacement,
-                SourceLocation sourceLocation, std::string diagnostics);
   MutationPoint(Mutator *mutator, irm::IRMutation *irMutator, llvm::Instruction *instruction,
                 Bitcode *m);
 
