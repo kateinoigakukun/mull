@@ -6,6 +6,7 @@
 #include "mull/Filters/FunctionFilter.h"
 #include "mull/FunctionUnderTest.h"
 #include "mull/Mutant.h"
+#include "mull/MutantRunner.h"
 #include "mull/MutationResult.h"
 #include "mull/MutationsFinder.h"
 #include "mull/Parallelization/Parallelization.h"
@@ -160,9 +161,11 @@ void Driver::selectInstructions(std::vector<FunctionUnderTest> &functions) {
 std::vector<std::unique_ptr<MutationResult>>
 Driver::runMutations(std::vector<std::unique_ptr<Mutant>> &mutants) {
   if (mutants.empty()) {
+    if (config.keepExecutable && !config.outputFile.empty()) {
+      llvm::sys::fs::copy_file(config.executable, config.outputFile);
+    }
     return std::vector<std::unique_ptr<MutationResult>>();
   }
-
   if (config.dryRunEnabled) {
     return dryRunMutations(mutants);
   }
@@ -251,36 +254,20 @@ Driver::normalRunMutations(std::vector<std::unique_ptr<Mutant>> &mutants) {
   singleTask.execute("Link mutated program",
                      [&]() { executable = toolchain.linker().linkObjectFiles(objectFiles); });
 
+  diagnostics.info("Mutated executable: "s + executable);
   if (!config.keepObjectFiles) {
     for (auto &objectFile : objectFiles) {
       llvm::sys::fs::remove(objectFile);
     }
   }
 
-  Runner runner(diagnostics);
-  /// On macOS, sometimes newly compiled programs take more time to execute for the first run
-  /// As we take the execution time as a baseline for timeout it makes sense to have an additional
-  /// warm up run so that the next runs will be a bit faster
-  singleTask.execute("Warm up run", [&]() {
-    runner.runProgram(executable, {}, {}, config.timeout, config.captureMutantOutput, std::nullopt);
-  });
-
-  ExecutionResult baseline;
-  singleTask.execute("Baseline run", [&]() {
-    baseline = runner.runProgram(
-        executable, {}, {}, config.timeout, config.captureMutantOutput, std::nullopt);
-  });
-
-  std::vector<std::unique_ptr<MutationResult>> mutationResults;
-
-  std::vector<MutantExecutionTask> tasks;
-  tasks.reserve(config.parallelization.mutantExecutionWorkers);
-  for (int i = 0; i < config.parallelization.mutantExecutionWorkers; i++) {
-    tasks.emplace_back(config, diagnostics, executable, baseline);
+  if (config.mutateOnly) {
+    return std::vector<std::unique_ptr<MutationResult>>();
   }
-  TaskExecutor<MutantExecutionTask> mutantRunner(
-      diagnostics, "Running mutants", mutants, mutationResults, std::move(tasks));
-  mutantRunner.execute();
+
+  MutantRunner mutantRunner(diagnostics, config);
+  std::vector<std::unique_ptr<MutationResult>> mutationResults =
+      mutantRunner.runMutants(executable, mutants);
 
   if (!config.keepExecutable) {
     llvm::sys::fs::remove(executable);
