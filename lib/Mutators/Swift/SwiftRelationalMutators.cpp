@@ -1,4 +1,3 @@
-
 #include "mull/FunctionUnderTest.h"
 #include "mull/MutationPoint.h"
 #include "mull/Mutators/Swift/SwiftMutations.h"
@@ -8,12 +7,12 @@
 using namespace mull;
 using namespace mull::swift;
 
-std::string SwiftLogicalAndToOr::ID() {
-  return "swift_logical_and_to_or";
+std::string SwiftEqualToNotEqual::ID() {
+  return "swift_eq_to_ne";
 }
 
-std::string SwiftLogicalAndToOr::description() {
-  return "Replaces && with ||";
+std::string SwiftEqualToNotEqual::description() {
+  return "Replaces == with !=";
 }
 
 // entry:
@@ -27,6 +26,7 @@ std::string SwiftLogicalAndToOr::description() {
 //
 // phiBB:
 //   %result = phi i1 [ false, %ifFalseBB ], [ %rhs, %ifTrueBB ]
+
 
 static llvm::PHINode *findPossiblePhi(llvm::Instruction &inst, llvm::BasicBlock **ifTrueBB,
                                       llvm::BasicBlock **ifFalseBB) {
@@ -105,7 +105,7 @@ static bool findPossibleMutation(llvm::Instruction &inst) {
   return true;
 }
 
-std::vector<MutationPoint *> SwiftLogicalAndToOr::getMutations(Bitcode *bitcode,
+std::vector<MutationPoint *> SwiftEqualToNotEqual::getMutations(Bitcode *bitcode,
                                                                const FunctionUnderTest &function) {
   assert(bitcode);
   std::vector<MutationPoint *> mutations;
@@ -120,7 +120,7 @@ std::vector<MutationPoint *> SwiftLogicalAndToOr::getMutations(Bitcode *bitcode,
   return mutations;
 }
 
-void SwiftLogicalAndToOr::applyMutation(llvm::Function *function,
+void SwiftEqualToNotEqual::applyMutation(llvm::Function *function,
                                         const mull::MutationPointAddress &address,
                                         irm::IRMutation *lowLevelMutation) {
   llvm::Instruction &inst = address.findInstruction(function);

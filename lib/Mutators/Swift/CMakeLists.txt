@@ -1,5 +1,6 @@
 set (SOURCES
-  SwiftLogicalAndToOr.cpp)
+  SwiftLogicalAndToOr.cpp
+  SwiftRelationalMutators.cpp)
 
 add_library(mull-swift-mutators ${SOURCES})
 target_link_libraries(mull-swift-mutators irm)

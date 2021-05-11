@@ -74,6 +74,9 @@ enum class MutatorKind {
 
   Swift_Logical_AndToOr,
   Swift_Logical_OrToAnd,
+
+  Swift_EqualToNotEqual,
+  Swift_NotEqualToEqual,
 };
 
 std::string MutationKindToString(MutatorKind mutatorKind);
