@@ -7,6 +7,100 @@
 using namespace mull;
 using namespace mull::swift;
 
+namespace mull::swift {
+class EquatableOperationFinder {
+public:
+  enum Operator {
+    Equal, NotEqual
+  };
+
+  Operator op;
+
+  EquatableOperationFinder(Operator op) : op(op) {}
+  std::vector<MutationPoint *> getMutations(Bitcode *bitcode,
+                                            const FunctionUnderTest &function,
+                                            mull::Mutator *mutator);
+};
+}
+
+std::vector<MutationPoint *> EquatableOperationFinder::getMutations(Bitcode *bitcode,
+                                                                    const FunctionUnderTest &function,
+                                                                    mull::Mutator *mutator) {
+  assert(bitcode);
+  std::vector<MutationPoint *> mutations;
+
+  // LOOKING_ICMP_EQ (icmp)-> FOUND_ICMP_EQ (different dbg node)-> FOUND_EQ -> LOOKING_ICMP_EQ
+  //                                        (xor               )-> FOUND_XOR (different dbg node)-> FOUND_NEQ -> LOOKING_ICMP_EQ
+  enum {
+    LOOKING_ICMP_EQ,
+    FOUND_ICMP_EQ,
+    FOUND_XOR,
+  } state = LOOKING_ICMP_EQ;
+  llvm::Instruction *foundICMP = nullptr;
+  llvm::Instruction *foundXor = nullptr;
+  llvm::Instruction *prevInst = nullptr;
+  auto instructions = llvm::instructions(function.getFunction());
+
+  for (auto it = instructions.begin(); it != instructions.end(); it++) {
+    auto &instruction = *it;
+    switch (state) {
+      case LOOKING_ICMP_EQ: {
+        if (auto icmp = llvm::dyn_cast<llvm::ICmpInst>(&instruction)) {
+          if (icmp->getPredicate() == llvm::CmpInst::ICMP_EQ) {
+            state = FOUND_ICMP_EQ;
+          }
+        }
+        break;
+      }
+      case FOUND_ICMP_EQ: {
+        assert(prevInst);
+        foundICMP = prevInst;
+        switch (op) {
+          case Equal: {
+            if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
+              mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundICMP, bitcode));
+              state = LOOKING_ICMP_EQ;
+            } else {
+              state = LOOKING_ICMP_EQ;
+            }
+            break;
+          }
+          case NotEqual: {
+            if (auto binOp = llvm::dyn_cast<llvm::BinaryOperator>(&instruction)) {
+              if (binOp->getOpcode() == llvm::Instruction::Xor &&
+                  instruction.getDebugLoc() == prevInst->getDebugLoc()) {
+                state = FOUND_XOR;
+              } else {
+                state = LOOKING_ICMP_EQ;
+              }
+            } else {
+              state = LOOKING_ICMP_EQ;
+            }
+          }
+          default:
+            break;
+        }
+        break;
+      }
+      case FOUND_XOR: {
+        assert(prevInst);
+        foundXor = prevInst;
+        if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
+          mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundICMP, bitcode));
+          state = LOOKING_ICMP_EQ;
+        } else {
+          state = LOOKING_ICMP_EQ;
+        }
+      }
+      default:
+        break;
+    }
+    prevInst = &instruction;
+  }
+  return mutations;
+}
+
+
 std::string SwiftEqualToNotEqual::ID() {
   return "swift_eq_to_ne";
 }
@@ -15,121 +109,41 @@ std::string SwiftEqualToNotEqual::description() {
   return "Replaces == with !=";
 }
 
-// entry:
-//   br i1 %lhs, label %ifTrueBB, label %ifFalseBB
-//
-// ifTrueBB:
-//   br label %phiBB
-//
-// ifFalseBB:
-//   br label %phiBB
-//
-// phiBB:
-//   %result = phi i1 [ false, %ifFalseBB ], [ %rhs, %ifTrueBB ]
-
-
-static llvm::PHINode *findPossiblePhi(llvm::Instruction &inst, llvm::BasicBlock **ifTrueBB,
-                                      llvm::BasicBlock **ifFalseBB) {
-  using namespace llvm;
-  auto *branchInst = llvm::dyn_cast<BranchInst>(&inst);
-  if (branchInst == nullptr) {
-    return nullptr;
-  }
-
-  if (!branchInst->isConditional()) {
-    return nullptr;
-  }
-
-  auto *ifTrueCandBB = dyn_cast<BasicBlock>(branchInst->getOperand(2));
-  auto *ifFalseCandBB = dyn_cast<BasicBlock>(branchInst->getOperand(1));
-
-  // FIXME
-  if (!(ifTrueCandBB->size() == 1 && ifFalseCandBB->size() == 1)) {
-    return nullptr;
-  }
-  auto *trueBranch = dyn_cast<BranchInst>(&ifTrueCandBB->front());
-  auto *falseBranch = dyn_cast<BranchInst>(&ifFalseCandBB->front());
-  if (trueBranch == nullptr || falseBranch == nullptr) {
-    return nullptr;
-  }
-  if (!trueBranch->isUnconditional() || !falseBranch->isUnconditional()) {
-    return nullptr;
-  }
-
-  if (trueBranch->getOperand(0) != falseBranch->getOperand(0)) {
-    return nullptr;
-  }
-
-  auto *phiDestBB = dyn_cast<BasicBlock>(trueBranch->getOperand(0));
-  if (phiDestBB->empty()) {
-    return nullptr;
-  }
-
-  auto *phiNode = dyn_cast<PHINode>(&phiDestBB->front());
-  if (!phiNode) {
-    return nullptr;
-  }
-
-  *ifTrueBB = ifTrueCandBB;
-  *ifFalseBB = ifFalseCandBB;
-  return phiNode;
-}
-
-static bool findPossibleMutation(llvm::Instruction &inst) {
-  using namespace llvm;
-  BasicBlock *ifTrueBB;
-  BasicBlock *ifFalseBB;
-  PHINode *phiNode = findPossiblePhi(inst, &ifTrueBB, &ifFalseBB);
-  if (!phiNode || phiNode->getNumIncomingValues() != 2) {
-    return false;
-  }
-
-  for (unsigned i = 0, e = phiNode->getNumIncomingValues(); i < e; ++i) {
-    Value *incoming = phiNode->getIncomingValue(i);
-    BasicBlock *fromBB = phiNode->getIncomingBlock(i);
-    if (fromBB == ifFalseBB) {
-      auto *constFalse = dyn_cast<ConstantInt>(incoming);
-      if (!constFalse)
-        return false;
-
-      if (constFalse->getType() != llvm::Type::getInt1Ty(inst.getContext()) ||
-          constFalse->getValue().getBoolValue() != false) {
-        return false;
-      }
-    } else if (fromBB == ifTrueBB) {
-      continue;
-    } else {
-      return false;
-    }
-  }
-  return true;
-}
-
 std::vector<MutationPoint *> SwiftEqualToNotEqual::getMutations(Bitcode *bitcode,
                                                                const FunctionUnderTest &function) {
-  assert(bitcode);
-  std::vector<MutationPoint *> mutations;
-
-  for (auto &instruction : llvm::instructions(function.getFunction())) {
-    if (findPossibleMutation(instruction)) {
-      auto point =
-          new mull::MutationPoint(this, nullptr, &instruction, bitcode);
-      mutations.push_back(point);
-    }
-  }
-  return mutations;
+  swift::EquatableOperationFinder finder(EquatableOperationFinder::Equal);
+  return finder.getMutations(bitcode, function, this);
 }
 
 void SwiftEqualToNotEqual::applyMutation(llvm::Function *function,
                                         const mull::MutationPointAddress &address,
                                         irm::IRMutation *lowLevelMutation) {
   llvm::Instruction &inst = address.findInstruction(function);
-  llvm::BasicBlock *ifTrueBB;
-  llvm::BasicBlock *ifFalseBB;
-  llvm::PHINode *phiNode = findPossiblePhi(inst, &ifTrueBB, &ifFalseBB);
-  // Before: phi i1 [ false, %falseBB ], [ %rhs, %trueBB ]
-  // After:  phi i1 [ %rhs, %falseBB ],  [ true, %trueBB ]
-  llvm::Value *rhs = phiNode->getIncomingValue(1);
-  phiNode->setIncomingValue(0, rhs);
-  phiNode->setIncomingValue(1, llvm::ConstantInt::getFalse(function->getContext()));
+  llvm::ICmpInst *icmp = llvm::dyn_cast<llvm::ICmpInst>(&inst);
+  assert(icmp);
+  icmp->setPredicate(llvm::CmpInst::ICMP_NE);
+}
+
+
+std::string SwiftNotEqualToEqual::ID() {
+  return "swift_ne_to_eq";
+}
+
+std::string SwiftNotEqualToEqual::description() {
+  return "Replaces != with ==";
+}
+
+std::vector<MutationPoint *> SwiftNotEqualToEqual::getMutations(Bitcode *bitcode,
+                                                               const FunctionUnderTest &function) {
+  swift::EquatableOperationFinder finder(EquatableOperationFinder::NotEqual);
+  return finder.getMutations(bitcode, function, this);
+}
+
+void SwiftNotEqualToEqual::applyMutation(llvm::Function *function,
+                                        const mull::MutationPointAddress &address,
+                                        irm::IRMutation *lowLevelMutation) {
+  llvm::Instruction &inst = address.findInstruction(function);
+  llvm::ICmpInst *icmp = llvm::dyn_cast<llvm::ICmpInst>(&inst);
+  assert(icmp);
+  icmp->setPredicate(llvm::CmpInst::ICMP_NE);
 }

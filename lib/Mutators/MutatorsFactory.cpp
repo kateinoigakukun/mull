@@ -160,8 +160,8 @@ MutatorsFactory::MutatorsFactory(Diagnostics &diagnostics) : diagnostics(diagnos
 
   groupsMapping[Swift_Comparison()] = {
     // FIXME: Swift's == and != emits multiple icmp eq insts
-    // cxx::EqualToNotEqual::ID(),          // == | !=
-    // cxx::NotEqualToEqual::ID(),          // != | ==
+    swift::SwiftEqualToNotEqual::ID(),   // == | !=
+    swift::SwiftNotEqualToEqual::ID(),          // != | ==
     cxx::LessOrEqualToGreaterThan::ID(), // <= | >
     cxx::LessThanToGreaterOrEqual::ID(), // <  | >=
     cxx::GreaterOrEqualToLessThan::ID(), // >= | <
@@ -257,6 +257,8 @@ void MutatorsFactory::init() {
   addMutator<cxx::GreaterThanToGreaterOrEqual>(mutatorsMapping);
 
   addMutator<swift::SwiftLogicalAndToOr>(mutatorsMapping);
+  addMutator<swift::SwiftEqualToNotEqual>(mutatorsMapping);
+  addMutator<swift::SwiftNotEqualToEqual>(mutatorsMapping);
 }
 
 Mutator *MutatorsFactory::getMutator(const string &mutatorId) {
