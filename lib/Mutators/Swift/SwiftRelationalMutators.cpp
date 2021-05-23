@@ -55,12 +55,21 @@ public:
 
 
 namespace {
+bool isWitnessTableAccessorCall(const llvm::Instruction &inst) {
+  if (auto callInst = llvm::dyn_cast<llvm::CallInst>(&inst)) {
+    if (auto calleeFn = callInst->getCalledFunction()) {
+      llvm::StringRef calleeName = calleeFn->getName();
+      return calleeName.endswith("Wl");
+    }
+  }
+  return false;
+}
 bool isIsSignedCall(const llvm::Instruction &inst) {
   if (auto callInst = llvm::dyn_cast<llvm::CallInst>(&inst)) {
     if (auto calleeFn = callInst->getCalledFunction()) {
       llvm::StringRef calleeName = calleeFn->getName();
-      return calleeName.startswith("$sSUsE8isSignedSbvgZs")
-      || calleeName.startswith("$sSZsE8isSignedSbvgZs");
+      return calleeName.startswith("$sSUsE8isSignedSbvgZ")
+      || calleeName.startswith("$sSZsE8isSignedSbvgZ");
     }
   }
   return false;
@@ -70,7 +79,7 @@ bool isBitWidthCall(const llvm::Instruction &inst) {
   if (auto callInst = llvm::dyn_cast<llvm::CallInst>(&inst)) {
     if (auto calleeFn = callInst->getCalledFunction()) {
       llvm::StringRef calleeName = calleeFn->getName();
-      return calleeName.startswith("$ss17FixedWidthIntegerPsE03bitB0Sivgs");
+      return calleeName.startswith("$ss17FixedWidthIntegerPsE03bitB0Sivg");
     }
   }
   return false;
@@ -214,13 +223,25 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
   
   std::function<bool (const llvm::CallInst &)> CallInstHandlers[] = {
     [](const llvm::CallInst &inst) {
-      return isIsSignedCall(inst);
+      return isWitnessTableAccessorCall(inst);
     },
     [](const llvm::CallInst &inst) {
       return isIsSignedCall(inst);
+    },
+    [](const llvm::CallInst &inst) {
+      return isWitnessTableAccessorCall(inst);
+    },
+    [](const llvm::CallInst &inst) {
+      return isIsSignedCall(inst);
+    },
+    [](const llvm::CallInst &inst) {
+      return isWitnessTableAccessorCall(inst);
     },
     [](const llvm::CallInst &inst) {
       return isBitWidthCall(inst);
+    },
+    [](const llvm::CallInst &inst) {
+      return isWitnessTableAccessorCall(inst);
     },
     [](const llvm::CallInst &inst) {
       return isBitWidthCall(inst);
@@ -261,32 +282,40 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     bool isOptional;
   };
   InlinedOpEntry InlinedOpcode[] = {
-    { llvm::Instruction::Call, false },
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Call,    true  },
+    { llvm::Instruction::Call,    false },
+    { llvm::Instruction::Br,      false },
 
-    { llvm::Instruction::ICmp, true  },
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::ICmp,    true  },
+    { llvm::Instruction::Br,      false },
 
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Br,      false },
 
-    { llvm::Instruction::PHI,  false },
-    { llvm::Instruction::Call, false },
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::PHI,     false },
+    { llvm::Instruction::Call,    true  },
+    { llvm::Instruction::Call,    false },
+    { llvm::Instruction::Br,      false },
 
-    { llvm::Instruction::ICmp, true  },
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::ICmp,    true  },
+    { llvm::Instruction::Br,      false },
 
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Br,      false },
 
-    { llvm::Instruction::PHI,  false },
-    { llvm::Instruction::ICmp, false },
-    { llvm::Instruction::Xor,  false },
-    { llvm::Instruction::Br,   false },
-    { llvm::Instruction::Br,   false },
-    { llvm::Instruction::Call, false },
-    { llvm::Instruction::Call, false },
-    { llvm::Instruction::ICmp, false },
-    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::PHI,     false },
+    { llvm::Instruction::ICmp,    false },
+    { llvm::Instruction::Xor,     false },
+    { llvm::Instruction::Br,      false },
+
+    { llvm::Instruction::Br,      false },
+
+    { llvm::Instruction::Call,    true  },
+    { llvm::Instruction::BitCast, true  },
+    { llvm::Instruction::Call,    false },
+    { llvm::Instruction::Call,    true  },
+    { llvm::Instruction::BitCast, true  },
+    { llvm::Instruction::Call,    false },
+    { llvm::Instruction::ICmp,    false },
+    { llvm::Instruction::Br,      false },
   };
 
   llvm::Instruction *currentInst = &instruction;
@@ -303,6 +332,7 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
       if (!expected.isOptional) {
         return nullptr;
       } else {
+        instIndices[expected.opcode]++;
         allInstIndex++;
         continue;
       }
@@ -327,9 +357,15 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
       }
     }
     if (!isAccepted) {
-      return nullptr;
+      if (expected.isOptional) {
+        instIndices[expected.opcode]++;
+        allInstIndex++;
+        continue;
+      } else {
+        return nullptr;
+      }
     }
-    instIndices[currentInst->getOpcode()]++;
+    instIndices[expected.opcode]++;
     allInstIndex++;
 
     if (allInstIndex >= sizeof(InlinedOpcode)/sizeof(InlinedOpEntry)) {
