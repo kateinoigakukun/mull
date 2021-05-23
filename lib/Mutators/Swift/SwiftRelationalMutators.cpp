@@ -259,8 +259,12 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     { llvm::Instruction::PHI,  false },
     { llvm::Instruction::Call, false },
     { llvm::Instruction::Br,   false },
+
+    { llvm::Instruction::ICmp, true  },
     { llvm::Instruction::Br,   false },
+
     { llvm::Instruction::Br,   false },
+
     { llvm::Instruction::PHI,  false },
     { llvm::Instruction::ICmp, false },
     { llvm::Instruction::Xor,  false },
