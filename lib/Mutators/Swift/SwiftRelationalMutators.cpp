@@ -9,17 +9,18 @@ using namespace mull;
 using namespace mull::swift;
 
 namespace mull::swift {
+enum class EquatableOperator { Equal, NotEqual };
+
 class EquatableOperationFinder {
 public:
-  enum Operator { Equal, NotEqual };
 
-  EquatableOperationFinder(Operator op, mull::Bitcode *bitcode, mull::Mutator *mutator)
+  EquatableOperationFinder(EquatableOperator op, mull::Bitcode *bitcode, mull::Mutator *mutator)
       : op(op), bitcode(bitcode), mutator(mutator) {}
 
   std::vector<MutationPoint *> getMutations(const FunctionUnderTest &function);
 
 private:
-  Operator op;
+  EquatableOperator op;
 
   mull::Bitcode *bitcode;
   mull::Mutator *mutator;
@@ -39,10 +40,17 @@ private:
 
   void nextPrimitiveFinderState(const llvm::Instruction &instruction,
                                 std::vector<MutationPoint *> &mutations);
-  /// @return Returns a return-to BB if found.
-  llvm::BasicBlock *findBinaryIntComparison(llvm::Instruction &instruction);
-  mull::MutationPoint *createBinaryIntComparisonMutation(llvm::BasicBlock &returnBB);
 };
+
+class BinaryIntegerPatternFinder {
+  EquatableOperator op;
+public:
+  BinaryIntegerPatternFinder(EquatableOperator op) : op(op) {}
+  /// @return Returns a return-to BB if found.
+  llvm::BasicBlock *findReturnToBB(llvm::Instruction &instruction);
+  llvm::Instruction *findResultInst(llvm::BasicBlock &returnBB);
+};
+
 } // namespace mull::swift
 
 void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction &instruction,
@@ -80,7 +88,7 @@ void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction 
     assert(prevInst);
     foundICMP = prevInst;
     switch (op) {
-    case Equal: {
+    case EquatableOperator::Equal: {
       if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
         mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundICMP, bitcode));
         primitiveFinderState = LOOKING_ICMP_EQ;
@@ -89,7 +97,7 @@ void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction 
       }
       break;
     }
-    case NotEqual: {
+    case EquatableOperator::NotEqual: {
       if (auto binOp = llvm::dyn_cast<llvm::BinaryOperator>(&instruction)) {
         if (binOp->getOpcode() == llvm::Instruction::Xor &&
             instruction.getDebugLoc() == prevInst->getDebugLoc()) {
@@ -142,8 +150,12 @@ bool isBitWidthCall(const llvm::Instruction &inst) {
 }
 };
 
+void dumpLLVM(const llvm::Value *value) {
+  value->print(llvm::outs());
+}
+
 llvm::BasicBlock *
-EquatableOperationFinder::findBinaryIntComparison(llvm::Instruction &instruction) {
+BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
   // clang-format off
   //
   //  %4 = call swiftcc i1 @"$sSUsE8isSignedSbvgZs6UInt32V_Tgq5"(%swift.type* swiftself @"$ss6UInt32VN"), !dbg !432
@@ -245,13 +257,14 @@ EquatableOperationFinder::findBinaryIntComparison(llvm::Instruction &instruction
     llvm::Instruction::ICmp,
     llvm::Instruction::Xor,
     llvm::Instruction::Br,
+    llvm::Instruction::Br,
     llvm::Instruction::Call,
     llvm::Instruction::Call,
     llvm::Instruction::ICmp,
     llvm::Instruction::Br,
   };
 
-  const llvm::Instruction *currentInst = &instruction;
+  llvm::Instruction *currentInst = &instruction;
   const llvm::DebugLoc &debugLoc = instruction.getDebugLoc();
   uint32_t instIndex = 0;
   uint32_t callInstIndex = 0;
@@ -294,17 +307,17 @@ EquatableOperationFinder::findBinaryIntComparison(llvm::Instruction &instruction
     if (auto nextInst = currentInst->getNextNode()) {
       currentInst = nextInst;
     } else {
-      const llvm::BasicBlock *currentBB = instruction.getParent();
+      llvm::BasicBlock *currentBB = currentInst->getParent();
       if (auto nextBB = currentBB->getNextNode()) {
         currentInst = &nextBB->front();
       }
     }
   }
 
-  if (instruction.getNextNode() != nullptr) {
+  if (currentInst->getNextNode() != nullptr) {
     return nullptr;
   }
-  llvm::BasicBlock *currentBB = instruction.getParent();
+  llvm::BasicBlock *currentBB = currentInst->getParent();
   if (auto nextBB = currentBB->getNextNode()) {
     return nextBB;
   } else {
@@ -312,8 +325,8 @@ EquatableOperationFinder::findBinaryIntComparison(llvm::Instruction &instruction
   }
 }
 
-mull::MutationPoint *
-EquatableOperationFinder::createBinaryIntComparisonMutation(llvm::BasicBlock &returnBB) {
+llvm::Instruction *
+BinaryIntegerPatternFinder::findResultInst(llvm::BasicBlock &returnBB) {
   if (returnBB.size() < 2) {
     return nullptr;
   }
@@ -323,10 +336,10 @@ EquatableOperationFinder::createBinaryIntComparisonMutation(llvm::BasicBlock &re
     return nullptr;
   }
   switch (op) {
-    case Equal: {
+    case EquatableOperator::Equal: {
       break;
     }
-    case NotEqual: {
+    case EquatableOperator::NotEqual: {
       instIt++;
       inst = &*instIt;
       if (inst->getOpcode() != llvm::Instruction::Xor) {
@@ -335,28 +348,45 @@ EquatableOperationFinder::createBinaryIntComparisonMutation(llvm::BasicBlock &re
       break;
     }
   }
-
-  return new mull::MutationPoint(mutator, nullptr, inst, bitcode);
+  return inst;
 }
 
 std::vector<MutationPoint *>
 EquatableOperationFinder::getMutations(const FunctionUnderTest &function) {
   assert(bitcode);
   std::vector<MutationPoint *> mutations;
+  BinaryIntegerPatternFinder finder(op);
 
   auto instructions = llvm::instructions(function.getFunction());
 
   for (auto it = instructions.begin(); it != instructions.end(); it++) {
     auto &instruction = *it;
     nextPrimitiveFinderState(instruction, mutations);
-    if (auto *foundBB = findBinaryIntComparison(instruction)) {
-      if (auto *point = createBinaryIntComparisonMutation(*foundBB)) {
-        mutations.push_back(point);
-      }
+
+    if (finder.findReturnToBB(instruction) != nullptr) {
+      auto *point = new mull::MutationPoint(mutator, nullptr, &instruction, bitcode);
+      mutations.push_back(point);
     }
+
     prevInst = &instruction;
   }
   return mutations;
+}
+
+static void mutateEquatableOperation(EquatableOperator originalOp, llvm::Instruction &inst) {
+  llvm::Instruction *resultInst;
+  swift::BinaryIntegerPatternFinder finder(originalOp);
+  if (auto returnBB = finder.findReturnToBB(inst)) {
+    resultInst = finder.findResultInst(*returnBB);
+  } else {
+    resultInst = &inst;
+  }
+  auto *clonedResultInst = resultInst->clone();
+  auto *notInstruction = llvm::BinaryOperator::CreateNot(clonedResultInst, "not");
+  resultInst->replaceAllUsesWith(notInstruction);
+  clonedResultInst->insertAfter(resultInst);
+  notInstruction->insertAfter(clonedResultInst);
+  resultInst->eraseFromParent();
 }
 
 std::string SwiftEqualToNotEqual::ID() {
@@ -369,7 +399,7 @@ std::string SwiftEqualToNotEqual::description() {
 
 std::vector<MutationPoint *> SwiftEqualToNotEqual::getMutations(Bitcode *bitcode,
                                                                 const FunctionUnderTest &function) {
-  swift::EquatableOperationFinder finder(EquatableOperationFinder::Equal, bitcode, this);
+  swift::EquatableOperationFinder finder(EquatableOperator::Equal, bitcode, this);
   return finder.getMutations(function);
 }
 
@@ -377,9 +407,7 @@ void SwiftEqualToNotEqual::applyMutation(llvm::Function *function,
                                          const mull::MutationPointAddress &address,
                                          irm::IRMutation *lowLevelMutation) {
   llvm::Instruction &inst = address.findInstruction(function);
-  llvm::ICmpInst *icmp = llvm::dyn_cast<llvm::ICmpInst>(&inst);
-  assert(icmp);
-  icmp->setPredicate(llvm::CmpInst::ICMP_NE);
+  mutateEquatableOperation(EquatableOperator::Equal, inst);
 }
 
 std::string SwiftNotEqualToEqual::ID() {
@@ -392,7 +420,7 @@ std::string SwiftNotEqualToEqual::description() {
 
 std::vector<MutationPoint *> SwiftNotEqualToEqual::getMutations(Bitcode *bitcode,
                                                                 const FunctionUnderTest &function) {
-  swift::EquatableOperationFinder finder(EquatableOperationFinder::NotEqual, bitcode, this);
+  swift::EquatableOperationFinder finder(EquatableOperator::NotEqual, bitcode, this);
   return finder.getMutations(function);
 }
 
@@ -400,7 +428,5 @@ void SwiftNotEqualToEqual::applyMutation(llvm::Function *function,
                                          const mull::MutationPointAddress &address,
                                          irm::IRMutation *lowLevelMutation) {
   llvm::Instruction &inst = address.findInstruction(function);
-  llvm::ICmpInst *icmp = llvm::dyn_cast<llvm::ICmpInst>(&inst);
-  assert(icmp);
-  icmp->setPredicate(llvm::CmpInst::ICMP_NE);
+  mutateEquatableOperation(EquatableOperator::NotEqual, inst);
 }
