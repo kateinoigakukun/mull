@@ -243,25 +243,33 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     [](const llvm::BranchInst &inst) { return inst.isConditional(); },
   };
 
-  unsigned InlinedOpcode[] = {
-    llvm::Instruction::Call,
-    llvm::Instruction::Br,
-    llvm::Instruction::Br,
-    llvm::Instruction::Br,
-    llvm::Instruction::PHI,
-    llvm::Instruction::Call,
-    llvm::Instruction::Br,
-    llvm::Instruction::Br,
-    llvm::Instruction::Br,
-    llvm::Instruction::PHI,
-    llvm::Instruction::ICmp,
-    llvm::Instruction::Xor,
-    llvm::Instruction::Br,
-    llvm::Instruction::Br,
-    llvm::Instruction::Call,
-    llvm::Instruction::Call,
-    llvm::Instruction::ICmp,
-    llvm::Instruction::Br,
+  struct InlinedOpEntry {
+    unsigned opcode;
+    bool isOptional;
+  };
+  InlinedOpEntry InlinedOpcode[] = {
+    { llvm::Instruction::Call, false },
+    { llvm::Instruction::Br,   false },
+
+    { llvm::Instruction::ICmp, true  },
+    { llvm::Instruction::Br,   false },
+
+    { llvm::Instruction::Br,   false },
+
+    { llvm::Instruction::PHI,  false },
+    { llvm::Instruction::Call, false },
+    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::PHI,  false },
+    { llvm::Instruction::ICmp, false },
+    { llvm::Instruction::Xor,  false },
+    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Br,   false },
+    { llvm::Instruction::Call, false },
+    { llvm::Instruction::Call, false },
+    { llvm::Instruction::ICmp, false },
+    { llvm::Instruction::Br,   false },
   };
 
   llvm::Instruction *currentInst = &instruction;
@@ -274,8 +282,14 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     if (currentInst->getDebugLoc() != debugLoc) {
       return nullptr;
     }
-    if (currentInst->getOpcode() != InlinedOpcode[instIndex]) {
-      return nullptr;
+    auto expected = InlinedOpcode[instIndex];
+    if (currentInst->getOpcode() != expected.opcode) {
+      if (!expected.isOptional) {
+        return nullptr;
+      } else {
+        instIndex += 1;
+        continue;
+      }
     }
     // FIXME: Use InstVisitor
     switch (currentInst->getOpcode()) {
@@ -300,7 +314,7 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     }
     instIndex += 1;
 
-    if (instIndex >= sizeof(InlinedOpcode)/sizeof(unsigned)) {
+    if (instIndex >= sizeof(InlinedOpcode)/sizeof(InlinedOpEntry)) {
       break;
     }
 
