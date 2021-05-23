@@ -291,47 +291,48 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
 
   llvm::Instruction *currentInst = &instruction;
   const llvm::DebugLoc &debugLoc = instruction.getDebugLoc();
-  uint32_t instIndex = 0;
-  uint32_t callInstIndex = 0;
-  uint32_t brInstIndex = 0;
+  uint32_t allInstIndex = 0;
+  uint32_t instIndices[llvm::Instruction::OtherOpsEnd] = {0};
 
   while (currentInst) {
     if (currentInst->getDebugLoc() != debugLoc) {
       return nullptr;
     }
-    auto expected = InlinedOpcode[instIndex];
+    auto expected = InlinedOpcode[allInstIndex];
     if (currentInst->getOpcode() != expected.opcode) {
       if (!expected.isOptional) {
         return nullptr;
       } else {
-        instIndex += 1;
+        allInstIndex++;
         continue;
       }
     }
+    uint32_t instIndex = instIndices[currentInst->getOpcode()];
+    bool isAccepted = false;
     // FIXME: Use InstVisitor
     switch (currentInst->getOpcode()) {
       case llvm::Instruction::Call: {
         const auto callInst = llvm::dyn_cast<llvm::CallInst>(currentInst);
-        if (!CallInstHandlers[callInstIndex](*callInst)) {
-          return nullptr;
-        }
-        callInstIndex += 1;
+        isAccepted = CallInstHandlers[instIndex](*callInst);
         break;
       }
       case llvm::Instruction::Br: {
         const auto brInst = llvm::dyn_cast<llvm::BranchInst>(currentInst);
-        if (!BrInstHandlers[brInstIndex](*brInst)) {
-          return nullptr;
-        }
-        brInstIndex += 1;
+        isAccepted = BrInstHandlers[instIndex](*brInst);
         break;
       }
-      default:
+      default: {
+        isAccepted = true;
         break;
+      }
     }
-    instIndex += 1;
+    if (!isAccepted) {
+      return nullptr;
+    }
+    instIndices[currentInst->getOpcode()]++;
+    allInstIndex++;
 
-    if (instIndex >= sizeof(InlinedOpcode)/sizeof(InlinedOpEntry)) {
+    if (allInstIndex >= sizeof(InlinedOpcode)/sizeof(InlinedOpEntry)) {
       break;
     }
 
