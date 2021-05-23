@@ -27,12 +27,12 @@ private:
 
   // MARK: Simple operator finder
   enum PrimitiveFinderState {
-    LOOKING_ICMP_EQ,
-    FOUND_ICMP_EQ,
+    LOOKING_EQ_INST,
+    FOUND_EQ_INST,
     FOUND_XOR,
   };
-  PrimitiveFinderState primitiveFinderState = LOOKING_ICMP_EQ;
-  llvm::Instruction *foundICMP = nullptr;
+  PrimitiveFinderState primitiveFinderState = LOOKING_EQ_INST;
+  llvm::Instruction *foundEqInst = nullptr;
   llvm::Instruction *foundXor = nullptr;
   llvm::Instruction *prevInst = nullptr;
 
@@ -53,79 +53,6 @@ public:
 
 } // namespace mull::swift
 
-void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction &instruction,
-                                                        std::vector<MutationPoint *> &mutations) {
-  //     For (op == Equal)
-  //
-  //     /---> LOOKING_ICMP_EQ ------\
-  //     |                           | (icmp eq)
-  //     |                           v
-  // FOUND_EQ <----------------- FOUND_ICMP_EQ
-  //          (different dbg node)
-  //
-  //
-  //     For (op == NotEqual)
-  //
-  //                (icmp eq)
-  // LOOKING_ICMP_EQ ------> FOUND_ICMP_EQ
-  //     ^                           |
-  //     |                           |
-  //     |                           v
-  // FOUND_NEQ <----------------- FOUND_XOR
-  //          (different dbg node)
-  //
-
-  switch (primitiveFinderState) {
-  case LOOKING_ICMP_EQ: {
-    if (auto icmp = llvm::dyn_cast<llvm::ICmpInst>(&instruction)) {
-      if (icmp->getPredicate() == llvm::CmpInst::ICMP_EQ) {
-        primitiveFinderState = FOUND_ICMP_EQ;
-      }
-    }
-    break;
-  }
-  case FOUND_ICMP_EQ: {
-    assert(prevInst);
-    foundICMP = prevInst;
-    switch (op) {
-    case EquatableOperator::Equal: {
-      if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
-        mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundICMP, bitcode));
-        primitiveFinderState = LOOKING_ICMP_EQ;
-      } else {
-        primitiveFinderState = LOOKING_ICMP_EQ;
-      }
-      break;
-    }
-    case EquatableOperator::NotEqual: {
-      if (auto binOp = llvm::dyn_cast<llvm::BinaryOperator>(&instruction)) {
-        if (binOp->getOpcode() == llvm::Instruction::Xor &&
-            instruction.getDebugLoc() == prevInst->getDebugLoc()) {
-          primitiveFinderState = FOUND_XOR;
-        } else {
-          primitiveFinderState = LOOKING_ICMP_EQ;
-        }
-      } else {
-        primitiveFinderState = LOOKING_ICMP_EQ;
-      }
-    }
-    default:
-      break;
-    }
-    break;
-  }
-  case FOUND_XOR: {
-    assert(prevInst);
-    foundXor = prevInst;
-    if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
-      mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundICMP, bitcode));
-      primitiveFinderState = LOOKING_ICMP_EQ;
-    } else {
-      primitiveFinderState = LOOKING_ICMP_EQ;
-    }
-  }
-  }
-}
 
 namespace {
 bool isIsSignedCall(const llvm::Instruction &inst) {
@@ -148,7 +75,93 @@ bool isBitWidthCall(const llvm::Instruction &inst) {
   }
   return false;
 }
+
+bool isEquatableEqCall(const llvm::Instruction &inst) {
+  if (auto callInst = llvm::dyn_cast<llvm::CallInst>(&inst)) {
+    if (auto calleeFn = callInst->getCalledFunction()) {
+      llvm::StringRef calleeName = calleeFn->getName();
+      return calleeName.startswith("$sSQ2eeoiySbx_xtFZTj");
+    }
+  }
+  return false;
+}
 };
+
+void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction &instruction,
+                                                        std::vector<MutationPoint *> &mutations) {
+  //     For (op == Equal)
+  //
+  //     /----> LOOKING_EQ_INST -----\
+  //     |                           | (icmp eq or Equatable.==)
+  //     |                           v
+  // FOUND_EQ <----------------- FOUND_EQ_INST
+  //          (different dbg node)
+  //
+  //
+  //     For (op == NotEqual)
+  //
+  //          (icmp eq or Equatable.==)
+  // LOOKING_EQ_INST --------> FOUND_EQ_INST
+  //     ^                           |
+  //     |                           |
+  //     |                           v
+  // FOUND_NEQ <----------------- FOUND_XOR
+  //          (different dbg node)
+  //
+
+  switch (primitiveFinderState) {
+  case LOOKING_EQ_INST: {
+    if (auto icmp = llvm::dyn_cast<llvm::ICmpInst>(&instruction)) {
+      if (icmp->getPredicate() == llvm::CmpInst::ICMP_EQ) {
+        primitiveFinderState = FOUND_EQ_INST;
+      }
+    } else if (isEquatableEqCall(instruction)) {
+      primitiveFinderState = FOUND_EQ_INST;
+    }
+    break;
+  }
+  case FOUND_EQ_INST: {
+    assert(prevInst);
+    foundEqInst = prevInst;
+    switch (op) {
+    case EquatableOperator::Equal: {
+      if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
+        mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundEqInst, bitcode));
+        primitiveFinderState = LOOKING_EQ_INST;
+      } else {
+        primitiveFinderState = LOOKING_EQ_INST;
+      }
+      break;
+    }
+    case EquatableOperator::NotEqual: {
+      if (auto binOp = llvm::dyn_cast<llvm::BinaryOperator>(&instruction)) {
+        if (binOp->getOpcode() == llvm::Instruction::Xor &&
+            instruction.getDebugLoc() == prevInst->getDebugLoc()) {
+          primitiveFinderState = FOUND_XOR;
+        } else {
+          primitiveFinderState = LOOKING_EQ_INST;
+        }
+      } else {
+        primitiveFinderState = LOOKING_EQ_INST;
+      }
+    }
+    default:
+      break;
+    }
+    break;
+  }
+  case FOUND_XOR: {
+    assert(prevInst);
+    foundXor = prevInst;
+    if (instruction.getDebugLoc() != prevInst->getDebugLoc()) {
+      mutations.push_back(new mull::MutationPoint(mutator, nullptr, foundEqInst, bitcode));
+      primitiveFinderState = LOOKING_EQ_INST;
+    } else {
+      primitiveFinderState = LOOKING_EQ_INST;
+    }
+  }
+  }
+}
 
 void dumpLLVM(const llvm::Value *value) {
   value->print(llvm::outs());
