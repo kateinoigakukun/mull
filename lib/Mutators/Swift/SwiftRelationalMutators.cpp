@@ -2,8 +2,8 @@
 #include "mull/MutationPoint.h"
 #include "mull/Mutators/Swift/SwiftMutations.h"
 #include <llvm/IR/InstIterator.h>
-#include <llvm/IR/Instructions.h>
 #include <llvm/IR/InstVisitor.h>
+#include <llvm/IR/Instructions.h>
 
 using namespace mull;
 using namespace mull::swift;
@@ -13,7 +13,6 @@ enum class EquatableOperator { Equal, NotEqual };
 
 class EquatableOperationFinder {
 public:
-
   EquatableOperationFinder(EquatableOperator op, mull::Bitcode *bitcode, mull::Mutator *mutator)
       : op(op), bitcode(bitcode), mutator(mutator) {}
 
@@ -44,6 +43,7 @@ private:
 
 class BinaryIntegerPatternFinder {
   EquatableOperator op;
+
 public:
   BinaryIntegerPatternFinder(EquatableOperator op) : op(op) {}
   /// @return Returns a return-to BB if found.
@@ -52,7 +52,6 @@ public:
 };
 
 } // namespace mull::swift
-
 
 namespace {
 bool isWitnessTableAccessorCall(const llvm::Instruction &inst) {
@@ -68,8 +67,8 @@ bool isIsSignedCall(const llvm::Instruction &inst) {
   if (auto callInst = llvm::dyn_cast<llvm::CallInst>(&inst)) {
     if (auto calleeFn = callInst->getCalledFunction()) {
       llvm::StringRef calleeName = calleeFn->getName();
-      return calleeName.startswith("$sSUsE8isSignedSbvgZ")
-      || calleeName.startswith("$sSZsE8isSignedSbvgZ");
+      return calleeName.startswith("$sSUsE8isSignedSbvgZ") ||
+             calleeName.startswith("$sSZsE8isSignedSbvgZ");
     }
   }
   return false;
@@ -94,7 +93,7 @@ bool isEquatableEqCall(const llvm::Instruction &inst) {
   }
   return false;
 }
-};
+}; // namespace
 
 void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction &instruction,
                                                         std::vector<MutationPoint *> &mutations) {
@@ -176,8 +175,7 @@ void dumpLLVM(const llvm::Value *value) {
   value->print(llvm::outs());
 }
 
-llvm::BasicBlock *
-BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
+llvm::BasicBlock *BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
   // clang-format off
   //
   //  %4 = call swiftcc i1 @"$sSUsE8isSignedSbvgZs6UInt32V_Tgq5"(%swift.type* swiftself @"$ss6UInt32VN"), !dbg !432
@@ -220,53 +218,41 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
   //  ret i1 %22, !dbg !434
   // clang-format on
 
-  
-  std::function<bool (const llvm::CallInst &)> CallInstHandlers[] = {
-    [](const llvm::CallInst &inst) {
-      return isWitnessTableAccessorCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isIsSignedCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isWitnessTableAccessorCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isIsSignedCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isWitnessTableAccessorCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isBitWidthCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isWitnessTableAccessorCall(inst);
-    },
-    [](const llvm::CallInst &inst) {
-      return isBitWidthCall(inst);
-    },
+  std::function<bool(const llvm::CallInst &)> CallInstHandlers[] = {
+    [](const llvm::CallInst &inst) { return isWitnessTableAccessorCall(inst); },
+    [](const llvm::CallInst &inst) { return isIsSignedCall(inst); },
+    [](const llvm::CallInst &inst) { return isWitnessTableAccessorCall(inst); },
+    [](const llvm::CallInst &inst) { return isIsSignedCall(inst); },
+    [](const llvm::CallInst &inst) { return isWitnessTableAccessorCall(inst); },
+    [](const llvm::CallInst &inst) { return isBitWidthCall(inst); },
+    [](const llvm::CallInst &inst) { return isWitnessTableAccessorCall(inst); },
+    [](const llvm::CallInst &inst) { return isBitWidthCall(inst); },
   };
 
-  std::function<bool (const llvm::BranchInst &)> BrInstHandlers[] = {
+  std::function<bool(const llvm::BranchInst &)> BrInstHandlers[] = {
     [](const llvm::BranchInst &inst) {
-      if (!inst.isConditional()) return false;
-      if (!llvm::isa<llvm::CallInst>(inst.getCondition())) return false;
+      if (!inst.isConditional())
+        return false;
+      if (!llvm::isa<llvm::CallInst>(inst.getCondition()))
+        return false;
       return true;
     },
     [](const llvm::BranchInst &inst) { return !inst.isConditional(); },
     [](const llvm::BranchInst &inst) { return !inst.isConditional(); },
 
     [](const llvm::BranchInst &inst) {
-      if (!inst.isConditional()) return false;
-      if (!llvm::isa<llvm::CallInst>(inst.getCondition())) return false;
+      if (!inst.isConditional())
+        return false;
+      if (!llvm::isa<llvm::CallInst>(inst.getCondition()))
+        return false;
       return true;
     },
     [](const llvm::BranchInst &inst) { return !inst.isConditional(); },
     [](const llvm::BranchInst &inst) { return !inst.isConditional(); },
 
     [](const llvm::BranchInst &inst) {
-      if (!inst.isConditional()) return false;
+      if (!inst.isConditional())
+        return false;
       if (auto binOp = llvm::dyn_cast<llvm::BinaryOperator>(inst.getCondition())) {
         return binOp->getOpcode() == llvm::Instruction::Xor;
       }
@@ -281,6 +267,7 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     unsigned opcode;
     bool isOptional;
   };
+  // clang-format off
   InlinedOpEntry InlinedOpcode[] = {
     { llvm::Instruction::Call,    true  },
     { llvm::Instruction::Call,    false },
@@ -317,11 +304,12 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     { llvm::Instruction::ICmp,    false },
     { llvm::Instruction::Br,      false },
   };
+  // clang-format on
 
   llvm::Instruction *currentInst = &instruction;
   const llvm::DebugLoc &debugLoc = instruction.getDebugLoc();
   uint32_t allInstIndex = 0;
-  uint32_t instIndices[llvm::Instruction::OtherOpsEnd] = {0};
+  uint32_t instIndices[llvm::Instruction::OtherOpsEnd] = { 0 };
 
   while (currentInst) {
     if (currentInst->getDebugLoc() != debugLoc) {
@@ -341,20 +329,20 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     bool isAccepted = false;
     // FIXME: Use InstVisitor
     switch (currentInst->getOpcode()) {
-      case llvm::Instruction::Call: {
-        const auto callInst = llvm::dyn_cast<llvm::CallInst>(currentInst);
-        isAccepted = CallInstHandlers[instIndex](*callInst);
-        break;
-      }
-      case llvm::Instruction::Br: {
-        const auto brInst = llvm::dyn_cast<llvm::BranchInst>(currentInst);
-        isAccepted = BrInstHandlers[instIndex](*brInst);
-        break;
-      }
-      default: {
-        isAccepted = true;
-        break;
-      }
+    case llvm::Instruction::Call: {
+      const auto callInst = llvm::dyn_cast<llvm::CallInst>(currentInst);
+      isAccepted = CallInstHandlers[instIndex](*callInst);
+      break;
+    }
+    case llvm::Instruction::Br: {
+      const auto brInst = llvm::dyn_cast<llvm::BranchInst>(currentInst);
+      isAccepted = BrInstHandlers[instIndex](*brInst);
+      break;
+    }
+    default: {
+      isAccepted = true;
+      break;
+    }
     }
     if (!isAccepted) {
       if (expected.isOptional) {
@@ -368,7 +356,7 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
     instIndices[expected.opcode]++;
     allInstIndex++;
 
-    if (allInstIndex >= sizeof(InlinedOpcode)/sizeof(InlinedOpEntry)) {
+    if (allInstIndex >= sizeof(InlinedOpcode) / sizeof(InlinedOpEntry)) {
       break;
     }
 
@@ -393,8 +381,7 @@ BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
   }
 }
 
-llvm::Instruction *
-BinaryIntegerPatternFinder::findResultInst(llvm::BasicBlock &returnBB) {
+llvm::Instruction *BinaryIntegerPatternFinder::findResultInst(llvm::BasicBlock &returnBB) {
   if (returnBB.size() < 2) {
     return nullptr;
   }
@@ -404,17 +391,17 @@ BinaryIntegerPatternFinder::findResultInst(llvm::BasicBlock &returnBB) {
     return nullptr;
   }
   switch (op) {
-    case EquatableOperator::Equal: {
-      break;
+  case EquatableOperator::Equal: {
+    break;
+  }
+  case EquatableOperator::NotEqual: {
+    instIt++;
+    inst = &*instIt;
+    if (inst->getOpcode() != llvm::Instruction::Xor) {
+      return nullptr;
     }
-    case EquatableOperator::NotEqual: {
-      instIt++;
-      inst = &*instIt;
-      if (inst->getOpcode() != llvm::Instruction::Xor) {
-        return nullptr;
-      }
-      break;
-    }
+    break;
+  }
   }
   return inst;
 }
