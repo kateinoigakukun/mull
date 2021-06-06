@@ -182,8 +182,9 @@ int main(int argc, char **argv) {
                                           compilationDatabasePathAvailable ||
                                           bitcodeCompilationFlagsAvailable;
 
-  mull::ASTStorage astStorage(
-      diagnostics, cxxCompilationDatabasePath, cxxCompilationFlags, bitcodeCompilationFlags);
+  mull::ASTMutationStorage astMutationStorage(diagnostics);
+  mull::CXXASTStorage astStorage(
+      diagnostics, astMutationStorage, cxxCompilationDatabasePath, cxxCompilationFlags, bitcodeCompilationFlags);
 
   mull::ASTSourceInfoProvider sourceInfoProvider(diagnostics, astStorage);
   tool::ReporterParameters params{ .reporterName = tool::ReportName.getValue(),
@@ -269,7 +270,7 @@ int main(int argc, char **argv) {
     mull::ASTFinder astFinder(mutatorKindSet);
     astFinder.findMutations(diagnostics, configuration, program, *filePathFilter, astStorage);
 
-    auto *astMutationFilter = new mull::ASTMutationFilter(diagnostics, astStorage);
+    auto *astMutationFilter = new mull::ASTMutationFilter(diagnostics, astMutationStorage);
     filters.mutationFilters.push_back(astMutationFilter);
   }
 

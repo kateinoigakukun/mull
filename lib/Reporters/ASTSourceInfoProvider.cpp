@@ -2,7 +2,7 @@
 
 #include "mull/AST/ASTMutationStorage.h"
 #include "mull/Diagnostics/Diagnostics.h"
-#include "mull/JunkDetection/CXX/ASTStorage.h"
+#include "mull/JunkDetection/CXX/CXXASTStorage.h"
 #include "mull/Mutant.h"
 #include "mull/SourceLocation.h"
 
@@ -11,7 +11,7 @@
 
 using namespace mull;
 
-ASTSourceInfoProvider::ASTSourceInfoProvider(Diagnostics &diagnostics, ASTStorage &astStorage)
+ASTSourceInfoProvider::ASTSourceInfoProvider(Diagnostics &diagnostics, CXXASTStorage &astStorage)
     : diagnostics(diagnostics), astStorage(astStorage) {}
 
 MutationPointSourceInfo ASTSourceInfoProvider::getSourceInfo(Mutant *mutant) {

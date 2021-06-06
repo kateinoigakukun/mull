@@ -3,7 +3,7 @@
 #include "mull/Bitcode.h"
 #include "mull/Diagnostics/Diagnostics.h"
 #include "mull/Filters/FilePathFilter.h"
-#include "mull/JunkDetection/CXX/ASTStorage.h"
+#include "mull/JunkDetection/CXX/CXXASTStorage.h"
 
 #include <unordered_map>
 #include <vector>
@@ -18,14 +18,14 @@ public:
   using Out = std::vector<std::pair<SourceFilePath, SingleASTUnitMutations>>;
   using iterator = In::const_iterator;
 
-  ASTSearchTask(Diagnostics &diagnostics, ASTStorage &astStorage, MutatorKindSet mutatorKindSet,
+  ASTSearchTask(Diagnostics &diagnostics, CXXASTStorage &astStorage, MutatorKindSet mutatorKindSet,
                 FilePathFilter &pathFilter);
 
   void operator()(iterator begin, iterator end, Out &storage, progress_counter &counter);
 
 private:
   Diagnostics &diagnostics;
-  ASTStorage &astStorage;
+  CXXASTStorage &astStorage;
   MutatorKindSet mutatorKindSet;
   FilePathFilter &pathFilter;
 };

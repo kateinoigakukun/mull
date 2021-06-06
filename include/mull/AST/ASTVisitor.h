@@ -3,7 +3,7 @@
 #include "mull/AST/ASTScalarMutationMatcher.h"
 #include "mull/Diagnostics/Diagnostics.h"
 #include "mull/Filters/FilePathFilter.h"
-#include "mull/JunkDetection/CXX/ASTStorage.h"
+#include "mull/JunkDetection/CXX/CXXASTStorage.h"
 
 #include <clang/AST/RecursiveASTVisitor.h>
 

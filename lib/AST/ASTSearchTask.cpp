@@ -6,7 +6,7 @@
 
 using namespace mull;
 
-ASTSearchTask::ASTSearchTask(mull::Diagnostics &diagnostics, mull::ASTStorage &astStorage,
+ASTSearchTask::ASTSearchTask(mull::Diagnostics &diagnostics, mull::CXXASTStorage &astStorage,
                              mull::MutatorKindSet mutatorKindSet, mull::FilePathFilter &pathFilter)
     : diagnostics(diagnostics), astStorage(astStorage), mutatorKindSet(mutatorKindSet),
       pathFilter(pathFilter) {}

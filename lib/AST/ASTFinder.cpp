@@ -4,7 +4,7 @@
 #include "mull/AST/ASTVisitor.h"
 #include "mull/Config/Configuration.h"
 #include "mull/Diagnostics/Diagnostics.h"
-#include "mull/JunkDetection/CXX/ASTStorage.h"
+#include "mull/JunkDetection/CXX/CXXASTStorage.h"
 #include "mull/JunkDetection/CXX/Visitors/VisitorParameters.h"
 #include "mull/Parallelization/TaskExecutor.h"
 #include "mull/Program/Program.h"
@@ -21,7 +21,7 @@ using namespace mull;
 ASTFinder::ASTFinder(const MutatorKindSet &mutatorKindSet) : mutatorKindSet(mutatorKindSet) {}
 
 void ASTFinder::findMutations(Diagnostics &diagnostics, const Configuration &config,
-                              Program &program, FilePathFilter &pathFilter, ASTStorage &storage) {
+                              Program &program, FilePathFilter &pathFilter, CXXASTStorage &storage) {
 
   std::vector<std::pair<SourceFilePath, SingleASTUnitMutations>> mutationsAsVector;
   std::vector<mull::ASTSearchTask> tasks;

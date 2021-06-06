@@ -14,7 +14,7 @@
 
 using namespace mull;
 
-CXXJunkDetector::CXXJunkDetector(ASTStorage &astStorage) : astStorage(astStorage) {}
+CXXJunkDetector::CXXJunkDetector(CXXASTStorage &astStorage) : astStorage(astStorage) {}
 
 static const clang::Stmt *findMutantExpression(MutationPoint *point,
                                                VisitorParameters &visitorParameters,

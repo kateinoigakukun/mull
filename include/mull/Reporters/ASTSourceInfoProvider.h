@@ -9,7 +9,7 @@ struct MutationPointSourceInfo {
   int endColumn = -1;
 };
 
-class ASTStorage;
+class CXXASTStorage;
 class Mutant;
 class Diagnostics;
 
@@ -27,13 +27,13 @@ public:
 
 class ASTSourceInfoProvider : public SourceInfoProvider {
 public:
-  ASTSourceInfoProvider(Diagnostics &diagnostics, ASTStorage &astStorage);
+  ASTSourceInfoProvider(Diagnostics &diagnostics, CXXASTStorage &astStorage);
   ~ASTSourceInfoProvider() = default;
   MutationPointSourceInfo getSourceInfo(Mutant *mutant) override;
 
 private:
   Diagnostics &diagnostics;
-  ASTStorage &astStorage;
+  CXXASTStorage &astStorage;
 };
 
 } // namespace mull

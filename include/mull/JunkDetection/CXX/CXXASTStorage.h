@@ -40,11 +40,13 @@ private:
   std::vector<clang::Decl *> decls;
 };
 
-class ASTStorage {
+class CXXASTStorage {
 public:
-  ASTStorage(Diagnostics &diagnostics, const std::string &cxxCompilationDatabasePath,
-             const std::string &cxxCompilationFlags,
-             const std::map<std::string, std::string> &bitcodeCompilationFlags);
+  CXXASTStorage(Diagnostics &diagnostics,
+                ASTMutationStorage &mutations,
+                const std::string &cxxCompilationDatabasePath,
+                const std::string &cxxCompilationFlags,
+                const std::map<std::string, std::string> &bitcodeCompilationFlags);
 
   ThreadSafeASTUnit *findAST(const mull::SourceLocation &sourceLocation);
   ThreadSafeASTUnit *findAST(const std::string &sourceFile);
@@ -69,7 +71,7 @@ private:
 
   CompilationDatabase compilationDatabase;
   std::map<std::string, std::unique_ptr<ThreadSafeASTUnit>> astUnits;
-  ASTMutationStorage mutations;
+  ASTMutationStorage &mutations;
 };
 
 } // namespace mull

@@ -8,7 +8,7 @@
 
 using namespace mull;
 
-ASTMutationFilter::ASTMutationFilter(Diagnostics &diagnostics, ASTStorage &astStorage)
+ASTMutationFilter::ASTMutationFilter(Diagnostics &diagnostics, ASTMutationStorage &astStorage)
     : diagnostics(diagnostics), astStorage(astStorage) {}
 
 bool ASTMutationFilter::shouldSkip(MutationPoint *point) {
