@@ -249,7 +249,7 @@ const ASTMutation &CXXASTStorage::getMutation(const std::string &sourceFile,
 void CXXASTStorage::saveMutation(const std::string &sourceFile, mull::MutatorKind mutatorKind,
                               const clang::Stmt *const expression, int line, int column) {
   std::lock_guard<std::mutex> lockGuard(mutantNodesMutex);
-  mutations.saveMutation(sourceFile, mutatorKind, expression, line, column);
+  mutations.saveMutation(sourceFile, mutatorKind, line, column);
 }
 
 void CXXASTStorage::saveMutations(

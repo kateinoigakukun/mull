@@ -39,7 +39,7 @@ public:
                       int column) const;
 
   void saveMutation(const std::string &sourceFile, mull::MutatorKind mutatorKind,
-                    const clang::Stmt *const expression, int line, int column);
+                    int line, int column);
 
   void saveMutations(std::unordered_map<SourceFilePath, SingleFileMutations> &storage);
 };

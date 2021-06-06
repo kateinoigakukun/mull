@@ -8,75 +8,9 @@
 namespace mull {
 
 enum class MutatorKind {
-  InvalidKind,
-
-  NegateMutator,
-  ScalarValueMutator,
-
-  CXX_RemoveVoidCall,
-  CXX_ReplaceScalarCall,
-
-  CXX_AddToSub,
-  CXX_AddAssignToSubAssign,
-  CXX_PreIncToPreDec,
-  CXX_PostIncToPostDec,
-
-  CXX_SubToAdd,
-  CXX_SubAssignToAddAssign,
-  CXX_PreDecToPreInc,
-  CXX_PostDecToPostInc,
-
-  CXX_MulToDiv,
-  CXX_MulAssignToDivAssign,
-
-  CXX_DivToMul,
-  CXX_DivAssignToMulAssign,
-
-  CXX_RemToDiv,
-  CXX_RemAssignToDivAssign,
-
-  CXX_BitwiseNotToNoop,
-  CXX_UnaryMinusToNoop,
-
-  CXX_LShiftToRShift,
-  CXX_LShiftAssignToRShiftAssign,
-
-  CXX_RShiftToLShift,
-  CXX_RShiftAssignToLShiftAssign,
-
-  CXX_Logical_AndToOr,
-  CXX_Logical_OrToAnd,
-
-  CXX_Bitwise_OrToAnd,
-  CXX_Bitwise_OrAssignToAndAssign,
-  CXX_Bitwise_AndToOr,
-  CXX_Bitwise_AndAssignToOrAssign,
-  CXX_Bitwise_XorToOr,
-  CXX_Bitwise_XorAssignToOrAssign,
-
-  CXX_LessThanToLessOrEqual,
-  CXX_LessOrEqualToLessThan,
-  CXX_GreaterThanToGreaterOrEqual,
-  CXX_GreaterOrEqualToGreaterThan,
-
-  CXX_GreaterThanToLessOrEqual,
-  CXX_GreaterOrEqualToLessThan,
-  CXX_LessThanToGreaterOrEqual,
-  CXX_LessOrEqualToGreaterThan,
-
-  CXX_EqualToNotEqual,
-  CXX_NotEqualToEqual,
-
-  CXX_AssignConst,
-  CXX_InitConst,
-
-  CXX_RemoveNegation,
-
-  Swift_Logical_AndToOr,
-  Swift_Logical_OrToAnd,
-
-  Swift_EqualToNotEqual,
-  Swift_NotEqualToEqual,
+#define MUTATOR_KIND(ID) ID,
+#include "mull-c/Mutators/MutatorKind.def"
+#undef MUTATOR_KIND
 };
 
 std::string MutationKindToString(MutatorKind mutatorKind);

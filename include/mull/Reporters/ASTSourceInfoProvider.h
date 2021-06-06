@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO: This file will be removed by https://github.com/mull-project/mull/pull/873
+
 namespace mull {
 
 struct MutationPointSourceInfo {
@@ -31,7 +33,7 @@ public:
   ~ASTSourceInfoProvider() = default;
   MutationPointSourceInfo getSourceInfo(Mutant *mutant) override;
 
-private:
+//private:
   Diagnostics &diagnostics;
   CXXASTStorage &astStorage;
 };

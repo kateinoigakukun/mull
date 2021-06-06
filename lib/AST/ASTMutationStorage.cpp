@@ -1,4 +1,5 @@
 #include "mull/AST/ASTMutationStorage.h"
+#include "mull-c/AST/ASTMutationStorage.h"
 
 #include <cassert>
 #include <iostream>
@@ -67,7 +68,7 @@ bool ASTMutationStorage::mutationExists(const std::string &sourceFile,
 }
 
 void ASTMutationStorage::saveMutation(const std::string &sourceFile, mull::MutatorKind mutatorKind,
-                                      const clang::Stmt *const expression, int line, int column) {
+                                      int line, int column) {
   assert(llvm::sys::fs::is_regular_file(sourceFile) || sourceFile == "/in-memory-file.cc");
 
   std::string description = MutationKindToString(mutatorKind);
@@ -87,10 +88,21 @@ void ASTMutationStorage::saveMutation(const std::string &sourceFile, mull::Mutat
   }
 
   storage[sourceFile][mutatorKind].emplace(hash,
-                                           ASTMutation(mutatorKind, line, column, expression));
+                                           ASTMutation(mutatorKind, line, column));
 }
 
 void ASTMutationStorage::saveMutations(
     std::unordered_map<SourceFilePath, SingleFileMutations> &mutations) {
   storage.swap(mutations);
+}
+
+
+void mull_ASTMutationStorage_saveMutation(CASTMutationStorage ctx,
+                                          const char *sourceFile,
+                                          enum CMutatorKind mutatorKind,
+                                          int line, int column) {
+  auto self = reinterpret_cast<ASTMutationStorage *>(ctx);
+  self->saveMutation(std::string(sourceFile),
+                     (mull::MutatorKind)mutatorKind,
+                     line, column);
 }

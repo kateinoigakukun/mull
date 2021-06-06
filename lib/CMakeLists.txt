@@ -73,7 +73,7 @@ set(mull_sources
   JunkDetection/CXX/Visitors/ReplaceCallVisitor.cpp
   JunkDetection/CXX/Visitors/BinaryVisitor.cpp
   JunkDetection/CXX/Visitors/UnaryVisitor.cpp
-  JunkDetection/CXX/ASTStorage.cpp
+  JunkDetection/CXX/CXXASTStorage.cpp
   JunkDetection/CXX/CompilationDatabase.cpp
 
   Reporters/IDEReporter.cpp
@@ -91,6 +91,7 @@ set(mull_sources
 )
 
 set(MULL_INCLUDE_DIR ${MULL_SOURCE_DIR}/include/mull)
+set(MULL_C_INCLUDE_DIR ${MULL_SOURCE_DIR}/include/mull-c)
 
 set(mull_header_dirs
   ${MULL_INCLUDE_DIR}
@@ -106,6 +107,7 @@ set(mull_header_dirs
   ${MULL_INCLUDE_DIR}/Program
   ${MULL_INCLUDE_DIR}/Reporters
   ${MULL_INCLUDE_DIR}/Toolchain
+  ${MULL_C_INCLUDE_DIR}/AST
   )
 
 # Globbing is not recommended by CMake so maybe consider listing headers

@@ -16,14 +16,17 @@ ASTSourceInfoProvider::ASTSourceInfoProvider(Diagnostics &diagnostics, CXXASTSto
 
 MutationPointSourceInfo ASTSourceInfoProvider::getSourceInfo(Mutant *mutant) {
   MutationPointSourceInfo info = MutationPointSourceInfo();
-  clang::SourceRange sourceRange;
+//  clang::SourceRange sourceRange;
+//
+//  const SourceLocation &sourceLocation = mutant->getSourceLocation();
+//  const std::string &sourceFile = sourceLocation.unitFilePath;
+//
+//  const ASTMutation &astMutation = astStorage.getMutation(
+//      sourceFile, mutant->getMutatorKind(), sourceLocation.line, sourceLocation.column);
 
-  const SourceLocation &sourceLocation = mutant->getSourceLocation();
-  const std::string &sourceFile = sourceLocation.unitFilePath;
-
-  const ASTMutation &astMutation = astStorage.getMutation(
-      sourceFile, mutant->getMutatorKind(), sourceLocation.line, sourceLocation.column);
-
+  return info;
+  // TODO: This Clang API dependent part will be removed by https://github.com/mull-project/mull/pull/873
+  /*
   const clang::Stmt *const mutantASTNode = astMutation.stmt;
 
   ThreadSafeASTUnit *astUnit = astStorage.findAST(mutant->getSourceLocation());
@@ -58,4 +61,5 @@ MutationPointSourceInfo ASTSourceInfoProvider::getSourceInfo(Mutant *mutant) {
   info.endLine = sourceManager.getExpansionLineNumber(sourceLocationEndActual, nullptr);
 
   return info;
+   */
 }

@@ -12,9 +12,8 @@ struct ASTMutation {
   mull::MutatorKind mutatorKind;
   int line;
   int column;
-  const clang::Stmt *const stmt;
-  ASTMutation(MutatorKind mutatorKind, int line, int column, const clang::Stmt *const stmt)
-      : mutatorKind(mutatorKind), line(line), column(column), stmt(stmt) {}
+  ASTMutation(MutatorKind mutatorKind, int line, int column)
+      : mutatorKind(mutatorKind), line(line), column(column) {}
 };
 
 } // namespace mull

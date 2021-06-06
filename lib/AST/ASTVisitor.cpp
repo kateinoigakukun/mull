@@ -240,5 +240,5 @@ void ASTVisitor::saveMutationPoint(mull::MutatorKind mutatorKind, const clang::S
   }
 
   singleFileMutations[mutatorKind].emplace(hash,
-                                           ASTMutation(mutatorKind, beginLine, beginColumn, stmt));
+                                           ASTMutation(mutatorKind, beginLine, beginColumn));
 }
