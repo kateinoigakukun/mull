@@ -41,7 +41,7 @@ public:
   void saveMutation(const std::string &sourceFile, mull::MutatorKind mutatorKind,
                     int line, int column);
 
-  void saveMutations(std::unordered_map<SourceFilePath, SingleFileMutations> &storage);
+  void saveMutations(SingleASTUnitMutations &storage);
 };
 
 } // namespace mull

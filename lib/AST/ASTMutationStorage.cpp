@@ -91,8 +91,7 @@ void ASTMutationStorage::saveMutation(const std::string &sourceFile, mull::Mutat
                                            ASTMutation(mutatorKind, line, column));
 }
 
-void ASTMutationStorage::saveMutations(
-    std::unordered_map<SourceFilePath, SingleFileMutations> &mutations) {
+void ASTMutationStorage::saveMutations(SingleASTUnitMutations &mutations) {
   storage.swap(mutations);
 }
 

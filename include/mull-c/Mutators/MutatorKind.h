@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-enum CMutatorKind {
+enum __attribute__((enum_extensibility(closed))) CMutatorKind {
 #define MUTATOR_KIND(ID) ID,
 #include "mull-c/Mutators/MutatorKind.def"
 #undef MUTATOR_KIND
