@@ -171,10 +171,6 @@ void EquatableOperationFinder::nextPrimitiveFinderState(const llvm::Instruction 
   }
 }
 
-void dumpLLVM(const llvm::Value *value) {
-  value->print(llvm::outs());
-}
-
 llvm::BasicBlock *BinaryIntegerPatternFinder::findReturnToBB(llvm::Instruction &instruction) {
   // clang-format off
   //
