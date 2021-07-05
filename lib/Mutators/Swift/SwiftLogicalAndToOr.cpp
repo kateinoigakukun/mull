@@ -43,7 +43,8 @@ static llvm::PHINode *findPossiblePhi(llvm::Instruction &inst, llvm::BasicBlock 
   auto *ifTrueCandBB = dyn_cast<BasicBlock>(branchInst->getOperand(2));
   auto *ifFalseCandBB = dyn_cast<BasicBlock>(branchInst->getOperand(1));
 
-  // FIXME
+  // FIXME: やっぱり1じゃないケースがある。
+  //     if self.blockMode.options.contains(.paddingRequired) && block.count != AES.blockSize {
   if (!(ifTrueCandBB->size() == 1 && ifFalseCandBB->size() == 1)) {
     return nullptr;
   }
